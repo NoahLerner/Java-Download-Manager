@@ -15,9 +15,10 @@ import java.nio.file.Paths;
 public class IdcDm {
 
     /**
-     * Receive arguments from the command-line, provide some feedback and start the download.
+     * Enter download program.
      *
-     * @param args command-line arguments
+     * @param args command-line arguments:
+	 * URL [MAX-CONCURRENT-CONNECTIONS] [MAX-DOWNLOAD-LIMIT]
      * @throws Exception 
      */
     public static void main(String[] args) throws Exception {
@@ -47,7 +48,7 @@ public class IdcDm {
 
     /**
      * Initiate the file's metadata, and iterate over missing ranges. For each:
-     * 1. Hand a range to a getter thread and submit it to the threadpool for execution
+     * 1. Hand a range to a getter thread and submit it to the dThreads for execution
      * 2. All along ensure that internet connection is good
      * 3. When download finishes, close all threads and begin shutdown
      *
@@ -59,19 +60,12 @@ public class IdcDm {
      */
     private static void DownloadURL(String url, int numberOfWorkers, Long maxBytesPerSecond) {
     	
-    	// Our thread pool will include all the HTTP Range getters
-    	ExecutorService threadPool = Executors.newFixedThreadPool(numberOfWorkers+1);
-    	// Second thread pool will be for rate limiter & FileWriter
-    	ExecutorService peripheralPool = Executors.newFixedThreadPool(1);
-
-    	
-    	// ignore TokenBucket for now
-    	TokenBucket tokenBuck = new TokenBucket();
-    	
-    	
+    	// download threads
+		ExecutorService dThreads = Executors.newFixedThreadPool(numberOfWorkers+1);
+		
     	//set up the RateLimiter
-    	Callable<Void> limiter = new RateLimiter(tokenBuck,maxBytesPerSecond);
-    	peripheralPool.submit(limiter);
+		ExecutorService rLimiterThread = Executors.newSingleThreadExecutor(); 	
+    	rLimiterThread.submit(new RateLimiter(maxBytesPerSecond));
     	
     	//-----------------------------------------------//
     	
@@ -82,8 +76,8 @@ public class IdcDm {
 			metafile.openFile();
 			
 		} catch (IOException e) {
-			threadPool.shutdownNow();
-			peripheralPool.shutdownNow();
+			dThreads.shutdownNow();
+			rLimiterThread.shutdownNow();
 			System.err.println("Download failed");
 			System.exit(1);
 		}
@@ -99,19 +93,19 @@ public class IdcDm {
     	// write the data to a file  
     	// blocks until the chunkQueue starts getting chunks
     	Callable<Void> file = new FileWriter(metafile, outQueue, numChunks);
-    	threadPool.submit(file);
+    	dThreads.submit(file);
     	    	
     	while(!metafile.isEmptyRanges()) {
     		    		
     		Future<Void> res;
     		Callable<Void> getter = new HTTPRangeGetter(url, metafile.getMissingRange(), 
 					outQueue, tokenBuck, numChunks);
-			res = threadPool.submit(getter);
+			res = dThreads.submit(getter);
 			try {
 				res.get();
 			} catch (InterruptedException | ExecutionException e) {
-				threadPool.shutdownNow();
-				peripheralPool.shutdownNow();
+				dThreads.shutdownNow();
+				rLimiterThread.shutdownNow();
 				System.err.println("Lost internet connection. Please reconnect and try again.");
 				System.err.println("Download failed");
 				File temp = new File("temp." + metafile.getMetadataFileName());
@@ -122,13 +116,13 @@ public class IdcDm {
 			}
     	}
     	
-    	threadPool.shutdown();
+    	dThreads.shutdown();
     	try {
-			threadPool.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
+			dThreads.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
 		} catch (InterruptedException e) {
-			threadPool.shutdownNow();
+			dThreads.shutdownNow();
 		}
-    	peripheralPool.shutdownNow();
+    	rLimiterThread.shutdownNow();
     	
     	Path metadata = Paths.get(metafile.getMetadataFileName());
     	File temp = new File("temp." + metafile.getMetadataFileName());

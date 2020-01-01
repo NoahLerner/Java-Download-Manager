@@ -11,9 +11,10 @@ public class RateLimiter implements Callable<Void> {
     private final Long maxBytesPerSecond;
     private final long PER_SECOND = 1000;
 
-    RateLimiter(TokenBucket tokenBucket, Long maxBytesPerSecond) {
-        this.tokenBucket = tokenBucket;
-        this.maxBytesPerSecond = (maxBytesPerSecond == null) ? Long.MAX_VALUE : maxBytesPerSecond;    }
+    RateLimiter(Long maxBytesPerSecond) {
+        this.tokenBucket = new TokenBucket();
+		this.maxBytesPerSecond = (maxBytesPerSecond == null) ? Long.MAX_VALUE : maxBytesPerSecond;
+	}
 
     public Void call() {
     	
