@@ -99,7 +99,7 @@ public class IdcDm {
     		    		
     		Future<Void> res;
     		Callable<Void> getter = new HTTPRangeGetter(url, metafile.getMissingRange(), 
-					outQueue, tokenBuck, numChunks);
+					outQueue, numChunks);
 			res = dThreads.submit(getter);
 			try {
 				res.get();
