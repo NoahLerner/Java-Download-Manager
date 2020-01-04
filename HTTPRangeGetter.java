@@ -25,12 +25,11 @@ public class HTTPRangeGetter implements Callable<Void> {
             String url,
             Range range,
             BlockingQueue<Chunk> outQueue,
-            TokenBucket tokenBucket,
             Semaphore numChunks) {
         this.url = url;
         this.range = range;
         this.outQueue = outQueue;
-        this.tokenBucket = tokenBucket;
+        this.tokenBucket = TokenBucket.getInstance();
         this.numChunks = numChunks;
     }
 

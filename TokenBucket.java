@@ -8,16 +8,23 @@ import java.util.concurrent.atomic.AtomicLong;
  * - take(n): remove n tokens from the bucket (blocks until n tokens are available and taken)
  * - set(n): set the bucket to contain n tokens (to allow "hard" rate limiting)
  * - add(n): add n tokens to the bucket (to allow "soft" rate limiting)
- * - terminate(): mark the bucket as terminated (used to communicate between threads)
- * - terminated(): return true if the bucket is terminated, false otherwise
  *
  */
 class TokenBucket {
 
-	private long numTokens;
-
-    TokenBucket() {
+    private long numTokens;
+    private static TokenBucket instance;
+    private TokenBucket() {
         this.numTokens = 0;
+    }
+
+    // singleton
+    synchronized static TokenBucket getInstance() {
+        if(instance == null){
+            instance = new TokenBucket();
+        }
+
+        return instance;
     }
 
     synchronized void take(long tokens) throws InterruptedException {
@@ -44,6 +51,4 @@ class TokenBucket {
     	this.numTokens = tokens;
     	this.notify();
     }
-    
-    
 }
