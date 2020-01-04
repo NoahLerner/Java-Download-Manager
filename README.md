@@ -7,5 +7,5 @@ From top level folder run ```javac IdcDm.java```
 # Run/usage
 ```java IdcDm URL [MAX-CONCURRENT-CONNECTIONS] [MAX-DOWNLOAD-LIMIT]```
 
-#Author
+# Author
 Noah Lerner
