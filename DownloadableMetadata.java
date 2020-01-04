@@ -21,17 +21,16 @@ import java.util.concurrent.ArrayBlockingQueue;
  * HINT: avoid the obvious bitmap solution, and think about ranges...
  */
 class DownloadableMetadata {
-    private String metadataFilename;
-    private String filename;
-    private String url;
-    private int content_length;
-    private ArrayList<Range> rangeList;
+    private int 					content_length;
+    private String 					metadataFilename;
+    private String 					filename;
+    private String 					url;
+    private ArrayList<Range> 		rangeList;
     public ArrayBlockingQueue<Range> rangeQueue;
     
-    // chunksPerRange is the number of chunks per range
-    private int chunksPerRange;
     
-    private static final int CHUNK_SIZE = 4096;
+	private final int BYTE_CHUNK_SIZE = 4096;
+	private final int NUM_BYTE_CHUNK_RANGES = 100;
     private final int numBytesPerRange;
     private final int numRanges;
   
@@ -43,22 +42,20 @@ class DownloadableMetadata {
         
         // content_length is the expected filesize
         this.content_length = getContentLength(url);
-       
-        this.chunksPerRange = getN();
         
-        this.numBytesPerRange = chunksPerRange*CHUNK_SIZE;
+        this.numBytesPerRange = getBytesPerRange();
         
         this.numRanges = calcNumRanges();
         
-        // ArrayList that tracks all the missing ranges
+        // ranges of filebytes
         this.rangeList = null;
         
-        // ArrayBlockingQueue that feeds ranges to HTTPGetters
+        // a queue of file parts to download
         this.rangeQueue = new ArrayBlockingQueue<Range>(numRanges);
     }
 
     /**
-     * This method splits the rile into numRanges ranges and puts them into an ArrayList<Range>
+     * This method splits the file into numRanges ranges and puts them into an ArrayList<Range>
      * @return ranges
      */
     private ArrayList<Range> initializeRanges() {
@@ -89,21 +86,20 @@ class DownloadableMetadata {
 	}
 
 	/**
-     * method returns chunksPerRange which is the number of chunks in a range.
-     * If the file is big enough, we define chunksPerRange so that there will be 100 ranges.
+     * gets max number of chunks in a range.
+     * spread file out over 100 byte chunk ranges
      * @return
      */
-    private int getN() {
+    private int getBytesPerRange() {
     	
-    	int chunksPerRange = (this.content_length / CHUNK_SIZE) / 100;
+    	int chunksPerRange = (this.content_length / BYTE_CHUNK_SIZE) / NUM_BYTE_CHUNK_RANGES;
 
-    	if(chunksPerRange  == 0) {
-    		// we put only 1 chunk per range, download file too small
-    		return 1;
-    	} else {
-    		// file is big enough to make 100 ranges
-    		return chunksPerRange;
-    	}
+		// download file too small, one chunk per range
+    	if(chunksPerRange < 1) {
+    		chunksPerRange = 1;
+		}
+
+		return chunksPerRange * BYTE_CHUNK_SIZE;
 	}
 
 	private int calcNumRanges() {
@@ -115,7 +111,7 @@ class DownloadableMetadata {
 		}
 	}
 
-	private static String getMetadataName(String filename) {
+	private String getMetadataName(String filename) {
         return filename + ".metadata";
     }
 	
@@ -123,7 +119,7 @@ class DownloadableMetadata {
 		return this.metadataFilename;
 	}
 
-    private static String getName(String path) {
+    private String getName(String path) {
     	
     	return path.substring(path.lastIndexOf('/') + 1, path.length());
     }

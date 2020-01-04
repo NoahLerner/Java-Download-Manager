@@ -1,7 +1,7 @@
 import java.io.Serializable;
 
 /**
- * Describes a simple range, with a start, an end, and a length
+ * Describes a simple byte range, with a start, an end, and a length
  */
 class Range implements Serializable{
     private Long start;
